@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ボタン記録</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#e07a3f">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ボタン記録">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #fdf7f0;
+    --surface: #ffffff;
+    --accent: #e07a3f;
+    --accent-dark: #c4622c;
+    --accent-soft: #fbe8da;
+    --text: #3d332c;
+    --text-muted: #8f8074;
+    --border: #f0e2d3;
+    --shadow: 0 2px 10px rgba(120, 90, 60, 0.08);
+    --shadow-hover: 0 6px 20px rgba(120, 90, 60, 0.14);
+    --danger: #c0503f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+  }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin: 0;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  .add-form {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    min-width: 260px;
+    max-width: 420px;
+  }
+
+  .add-form input {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 0.95rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .add-form input:focus {
+    border-color: var(--accent);
+  }
+
+  .add-form button {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .add-form button:hover { background: var(--accent-dark); }
+  .add-form button:active { transform: scale(0.97); }
+  .add-form button:disabled { opacity: 0.6; cursor: default; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 18px;
+  }
+
+  .card {
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 5px solid var(--card-color, var(--accent));
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+
+  .card:hover { box-shadow: var(--shadow-hover); }
+
+  .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    word-break: break-word;
+    line-height: 1.3;
+  }
+
+  .card-delete {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .card-delete:hover { color: var(--danger); background: #fbeceb; }
+
+  .press-btn {
+    border: none;
+    border-radius: 12px;
+    background: var(--card-soft, var(--accent-soft));
+    color: var(--card-color, var(--accent-dark));
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 22px 12px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.15s;
+  }
+
+  .press-btn:hover { filter: brightness(0.97); }
+
+  .press-btn.pressed {
+    animation: pressPop 0.35s ease;
+  }
+
+  @keyframes pressPop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(0.93); }
+    65%  { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+
+  .ripple {
+    position: absolute;
+    inset: 0;
+    background: var(--card-color, var(--accent));
+    opacity: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .ripple.animate {
+    animation: rippleFade 0.5s ease-out;
+  }
+  @keyframes rippleFade {
+    0%   { opacity: 0.35; }
+    100% { opacity: 0; }
+  }
+
+  .card-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  .card-stats .count {
+    font-weight: 700;
+    color: var(--text);
+    transition: transform 0.2s;
+  }
+  .count.bump { animation: bump 0.3s ease; }
+  @keyframes bump {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.35); }
+    100% { transform: scale(1); }
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .history-link {
+    background: none;
+    border: none;
+    color: var(--card-color, var(--accent-dark));
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .history-link:hover { text-decoration: underline; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    margin-top: 60px;
+    font-size: 0.95rem;
+  }
+  .hidden { display: none !important; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(60, 45, 30, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 16px;
+    max-width: 420px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 12px 40px rgba(60, 45, 30, 0.25);
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 20px 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 14px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.05rem;
+    margin: 0;
+    word-break: break-word;
+  }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+  }
+  .icon-btn:hover { background: var(--accent-soft); color: var(--accent-dark); }
+
+  .history-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px 12px;
+    overflow-y: auto;
+  }
+
+  .history-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .history-list li:last-child { border-bottom: none; }
+
+  .history-del {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .history-del:hover { color: var(--danger); background: #fbeceb; }
+
+  #historyEmpty { margin: 24px 0; }
+
+  /* View tabs */
+  .view-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .view-tab {
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .view-tab:hover:not(.active) { background: var(--accent-soft); color: var(--accent-dark); }
+  .view-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Calendar */
+  .calendar-view {
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px 22px;
+  }
+
+  .calendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .calendar-nav h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    min-width: 110px;
+    text-align: center;
+  }
+  .calendar-nav .icon-btn { font-size: 1.1rem; }
+  .today-btn {
+    position: absolute;
+    right: 0;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .today-btn:hover { background: var(--accent-soft); color: var(--accent-dark); }
+
+  .calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .calendar-weekdays .sun { color: var(--danger); }
+  .calendar-weekdays .sat { color: #3f6fb0; }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .day-cell {
+    min-height: 62px;
+    border-radius: 10px;
+    padding: 6px;
+    background: var(--bg);
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.15s;
+  }
+  .day-cell:hover { border-color: var(--accent); }
+  .day-cell.outside { opacity: 0.32; }
+
+  .day-num {
+    font-size: 0.76rem;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .day-cell.today .day-num {
+    color: #fff;
+    background: var(--accent);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .day-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+  }
+  .day-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--dot-color, var(--accent));
+    flex-shrink: 0;
+  }
+  .day-more {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+  }
+
+  .entry-name-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .entry-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 480px) {
+    .day-cell { min-height: 48px; }
+    .calendar-nav h2 { font-size: 0.95rem; min-width: 90px; }
+  }
+
+  /* Auth screen */
+  .auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .auth-card {
+    background: var(--surface);
+    border-radius: 20px;
+    box-shadow: var(--shadow-hover);
+    padding: 34px 28px;
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+  }
+  .auth-card h1 { margin: 0 0 4px; font-size: 1.4rem; }
+  .auth-sub { color: var(--text-muted); font-size: 0.85rem; margin: 0 0 22px; }
+  .auth-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .auth-form input {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 0.95rem;
+    outline: none;
+  }
+  .auth-form input:focus { border-color: var(--accent); }
+  .auth-form button {
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+  .auth-form button:hover { background: var(--accent-dark); }
+  .auth-form button:disabled { opacity: 0.6; cursor: default; }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--accent-dark);
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 4px;
+  }
+
+  .auth-message {
+    font-size: 0.82rem;
+    margin-top: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .auth-message.error { color: var(--danger); }
+
+  .account-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+  <div id="authScreen" class="auth-screen hidden">
+    <div class="auth-card">
+      <h1>ボタン記録</h1>
+      <p class="auth-sub">メールアドレスでログインしてください</p>
+      <form id="authForm" class="auth-form">
+        <input id="authEmail" type="email" placeholder="メールアドレス" required autocomplete="email">
+        <input id="authPassword" type="password" placeholder="パスワード（6文字以上）" required minlength="6" autocomplete="current-password">
+        <button id="authSubmitBtn" type="submit">ログイン</button>
+      </form>
+      <button id="authToggleMode" class="link-btn" type="button">アカウントをお持ちでない方はこちら</button>
+      <p id="authMessage" class="auth-message hidden"></p>
+    </div>
+  </div>
+
+  <div id="appScreen" class="app hidden">
+    <div class="account-bar">
+      <span id="accountEmail"></span>
+      <button id="signOutBtn" class="link-btn" type="button">ログアウト</button>
+    </div>
+
+    <header>
+      <h1>ボタン記録</h1>
+      <form id="addForm" class="add-form">
+        <input id="nameInput" type="text" placeholder="ボタンの名前を入力" maxlength="30" required autocomplete="off">
+        <button id="addSubmitBtn" type="submit">＋ 追加</button>
+      </form>
+    </header>
+
+    <div class="view-tabs">
+      <button class="view-tab active" data-view="list" type="button">一覧</button>
+      <button class="view-tab" data-view="calendar" type="button">カレンダー</button>
+    </div>
+
+    <main id="grid" class="grid"></main>
+    <p id="emptyState" class="empty-state hidden">まだボタンがありません。上のフォームから追加してください。</p>
+
+    <section id="calendarView" class="calendar-view hidden">
+      <div class="calendar-nav">
+        <button id="prevMonth" class="icon-btn" aria-label="前の月" type="button">‹</button>
+        <h2 id="calendarTitle"></h2>
+        <button id="nextMonth" class="icon-btn" aria-label="次の月" type="button">›</button>
+        <button id="todayBtn" class="today-btn" type="button">今日</button>
+      </div>
+      <div class="calendar-weekdays">
+        <span class="sun">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="sat">土</span>
+      </div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+    </section>
+  </div>
+
+  <div id="historyModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle"></h2>
+        <button id="closeModal" class="icon-btn" aria-label="閉じる">×</button>
+      </div>
+      <ul id="historyList" class="history-list"></ul>
+      <p id="historyEmpty" class="empty-state hidden">履歴はありません。</p>
+    </div>
+  </div>
+
+  <div id="dayModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="dayModalTitle"></h2>
+        <button id="closeDayModal" class="icon-btn" aria-label="閉じる">×</button>
+      </div>
+      <ul id="dayList" class="history-list"></ul>
+      <p id="dayEmpty" class="empty-state hidden">この日の記録はありません。</p>
+    </div>
+  </div>
+
+<script>
+(function () {
+  // ▼▼▼ ここに Supabase プロジェクトの情報を入力してください ▼▼▼
+  const SUPABASE_URL = 'https://hsiewzojhfkcntpafrim.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_DPrN5yqlFKHy7VviRls6ZA_DLQd4llu';
+  // ▲▲▲ ここまで ▲▲▲
+
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+  function getColor(index) {
+    const hue = (index * 137.508) % 360;
+    return {
+      accent: `hsl(${hue.toFixed(1)} 62% 48%)`,
+      soft: `hsl(${hue.toFixed(1)} 75% 94%)`
+    };
+  }
+
+  function formatDateTime(ts, withSeconds) {
+    const d = new Date(ts);
+    const pad = n => String(n).padStart(2, '0');
+    let s = `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    if (withSeconds) s += `:${pad(d.getSeconds())}`;
+    return s;
+  }
+
+  function errorMessageJa(err) {
+    const msg = (err && err.message) || '';
+    if (msg.includes('Invalid login credentials')) return 'メールアドレスまたはパスワードが正しくありません。';
+    if (msg.includes('User already registered')) return 'このメールアドレスは既に登録されています。ログインしてください。';
+    if (msg.includes('Password should be at least')) return 'パスワードは6文字以上で入力してください。';
+    return msg || 'エラーが発生しました。通信環境をご確認ください。';
+  }
+
+  let state = { buttons: [] };
+  let currentHistoryButtonId = null;
+  let currentView = 'list';
+  let calendarMonth = new Date();
+  calendarMonth.setDate(1);
+  let currentDayKey = null;
+  let realtimeChannel = null;
+
+  // Auth elements
+  const authScreen = document.getElementById('authScreen');
+  const appScreen = document.getElementById('appScreen');
+  const authForm = document.getElementById('authForm');
+  const authEmail = document.getElementById('authEmail');
+  const authPassword = document.getElementById('authPassword');
+  const authSubmitBtn = document.getElementById('authSubmitBtn');
+  const authToggleMode = document.getElementById('authToggleMode');
+  const authMessage = document.getElementById('authMessage');
+  const accountEmail = document.getElementById('accountEmail');
+  const signOutBtn = document.getElementById('signOutBtn');
+
+  // App elements
+  const grid = document.getElementById('grid');
+  const emptyState = document.getElementById('emptyState');
+  const addForm = document.getElementById('addForm');
+  const nameInput = document.getElementById('nameInput');
+  const addSubmitBtn = document.getElementById('addSubmitBtn');
+  const modal = document.getElementById('historyModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const historyList = document.getElementById('historyList');
+  const historyEmpty = document.getElementById('historyEmpty');
+  const closeModalBtn = document.getElementById('closeModal');
+
+  const viewTabs = document.querySelectorAll('.view-tab');
+  const calendarView = document.getElementById('calendarView');
+  const calendarGrid = document.getElementById('calendarGrid');
+  const calendarTitle = document.getElementById('calendarTitle');
+  const prevMonthBtn = document.getElementById('prevMonth');
+  const nextMonthBtn = document.getElementById('nextMonth');
+  const todayBtn = document.getElementById('todayBtn');
+  const dayModal = document.getElementById('dayModal');
+  const dayModalTitle = document.getElementById('dayModalTitle');
+  const dayList = document.getElementById('dayList');
+  const dayEmpty = document.getElementById('dayEmpty');
+  const closeDayModalBtn = document.getElementById('closeDayModal');
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function dateKey(ts) {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function findButton(id) {
+    return state.buttons.find(b => b.id === id);
+  }
+
+  // ---------- Data sync (Supabase) ----------
+
+  async function fetchAllData() {
+    const [buttonsRes, pressesRes] = await Promise.all([
+      sb.from('buttons').select('*').order('created_at', { ascending: true }),
+      sb.from('presses').select('*').order('pressed_at', { ascending: false })
+    ]);
+    if (buttonsRes.error || pressesRes.error) {
+      console.error(buttonsRes.error || pressesRes.error);
+      return;
+    }
+    const presses = pressesRes.data;
+    state.buttons = buttonsRes.data.map(b => ({
+      id: b.id,
+      name: b.name,
+      colorIndex: b.color_index,
+      createdAt: new Date(b.created_at).getTime(),
+      presses: presses
+        .filter(p => p.button_id === b.id)
+        .map(p => ({ id: p.id, timestamp: new Date(p.pressed_at).getTime() }))
+    }));
+    render();
+  }
+
+  async function addButtonRemote(name) {
+    const { data: idx, error: idxErr } = await sb.rpc('get_next_color_index');
+    if (idxErr) { alert('追加に失敗しました: ' + errorMessageJa(idxErr)); return; }
+    const { error } = await sb.from('buttons').insert({ name, color_index: idx });
+    if (error) { alert('追加に失敗しました: ' + errorMessageJa(error)); return; }
+    await fetchAllData();
+  }
+
+  async function pressButtonRemote(buttonId) {
+    const insertPromise = sb.from('presses').insert({ button_id: buttonId });
+    const [{ error }] = await Promise.all([insertPromise, sleep(380)]);
+    if (error) { alert('記録に失敗しました: ' + errorMessageJa(error)); }
+    await fetchAllData();
+  }
+
+  async function deleteButtonRemote(id) {
+    const { error } = await sb.from('buttons').delete().eq('id', id);
+    if (error) { alert('削除に失敗しました: ' + errorMessageJa(error)); return; }
+    await fetchAllData();
+  }
+
+  async function deletePressRemote(pressId) {
+    const { error } = await sb.from('presses').delete().eq('id', pressId);
+    if (error) { alert('削除に失敗しました: ' + errorMessageJa(error)); return; }
+    await fetchAllData();
+  }
+
+  function subscribeRealtime(userId) {
+    unsubscribeRealtime();
+    realtimeChannel = sb.channel('press-log-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'buttons', filter: `user_id=eq.${userId}` }, () => fetchAllData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'presses', filter: `user_id=eq.${userId}` }, () => fetchAllData())
+      .subscribe();
+  }
+
+  function unsubscribeRealtime() {
+    if (realtimeChannel) {
+      sb.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+  }
+
+  // ---------- Auth ----------
+
+  let authMode = 'signin';
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    authSubmitBtn.textContent = mode === 'signin' ? 'ログイン' : '新規登録';
+    authToggleMode.textContent = mode === 'signin'
+      ? 'アカウントをお持ちでない方はこちら'
+      : 'すでにアカウントをお持ちの方はこちら';
+    authMessage.classList.add('hidden');
+  }
+
+  authToggleMode.addEventListener('click', () => {
+    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+  });
+
+  authForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    authSubmitBtn.disabled = true;
+    authMessage.classList.add('hidden');
+    try {
+      if (authMode === 'signin') {
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else {
+        const { data, error } = await sb.auth.signUp({ email, password });
+        if (error) throw error;
+        if (!data.session) {
+          setAuthMode('signin');
+          authMessage.textContent = '確認メールを送信しました。メール内のリンクを開いてからログインしてください。';
+          authMessage.classList.remove('error');
+          authMessage.classList.remove('hidden');
+        }
+      }
+    } catch (err) {
+      authMessage.textContent = errorMessageJa(err);
+      authMessage.classList.add('error');
+      authMessage.classList.remove('hidden');
+    } finally {
+      authSubmitBtn.disabled = false;
+    }
+  });
+
+  signOutBtn.addEventListener('click', async () => {
+    await sb.auth.signOut();
+  });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session && session.user) {
+      authScreen.classList.add('hidden');
+      appScreen.classList.remove('hidden');
+      accountEmail.textContent = session.user.email;
+      authForm.reset();
+      subscribeRealtime(session.user.id);
+      fetchAllData();
+    } else {
+      unsubscribeRealtime();
+      state.buttons = [];
+      appScreen.classList.add('hidden');
+      authScreen.classList.remove('hidden');
+    }
+  });
+
+  // ---------- Rendering ----------
+
+  function render() {
+    renderList();
+    renderCalendar();
+    updateViewVisibility();
+  }
+
+  function updateViewVisibility() {
+    const isList = currentView === 'list';
+    viewTabs.forEach(t => t.classList.toggle('active', t.dataset.view === currentView));
+    grid.classList.toggle('hidden', !isList);
+    emptyState.classList.toggle('hidden', !isList || state.buttons.length > 0);
+    calendarView.classList.toggle('hidden', isList);
+  }
+
+  function renderList() {
+    grid.innerHTML = '';
+
+    state.buttons.forEach(btn => {
+      const color = getColor(btn.colorIndex);
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.setProperty('--card-color', color.accent);
+      card.style.setProperty('--card-soft', color.soft);
+      card.dataset.id = btn.id;
+
+      const count = btn.presses.length;
+      const last = count > 0 ? formatDateTime(btn.presses[0].timestamp, false) : '未押下';
+
+      card.innerHTML = `
+        <div class="card-head">
+          <div class="card-title">${escapeHtml(btn.name)}</div>
+          <button class="card-delete" data-action="delete-button" title="このボタンを削除">削除</button>
+        </div>
+        <button class="press-btn" data-action="press">
+          押す
+          <span class="ripple"></span>
+        </button>
+        <div class="card-stats">
+          <span>最終: ${last}</span>
+          <span>回数: <span class="count">${count}</span></span>
+        </div>
+        <div class="card-footer">
+          <button class="history-link" data-action="open-history">履歴を見る（${count}件）</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  // Add button
+  addForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = nameInput.value.trim();
+    if (!name) return;
+    nameInput.value = '';
+    addSubmitBtn.disabled = true;
+    await addButtonRemote(name);
+    addSubmitBtn.disabled = false;
+  });
+
+  // Card interactions (delegated)
+  grid.addEventListener('click', async e => {
+    const actionEl = e.target.closest('[data-action]');
+    if (!actionEl) return;
+    const card = e.target.closest('.card');
+    const id = card.dataset.id;
+    const action = actionEl.dataset.action;
+
+    if (action === 'press') {
+      actionEl.classList.add('pressed');
+      const ripple = actionEl.querySelector('.ripple');
+      if (ripple) ripple.classList.add('animate');
+      await pressButtonRemote(id);
+    } else if (action === 'delete-button') {
+      const btn = findButton(id);
+      if (confirm(`「${btn.name}」を削除しますか？\n履歴もすべて削除されます。`)) {
+        await deleteButtonRemote(id);
+      }
+    } else if (action === 'open-history') {
+      openHistory(id);
+    }
+  });
+
+  function openHistory(id) {
+    currentHistoryButtonId = id;
+    const btn = findButton(id);
+    modalTitle.textContent = `${btn.name} の履歴`;
+    renderHistory();
+    modal.classList.remove('hidden');
+  }
+
+  function renderHistory() {
+    const btn = findButton(currentHistoryButtonId);
+    if (!btn) { closeModal(); return; }
+    historyList.innerHTML = '';
+    historyEmpty.classList.toggle('hidden', btn.presses.length > 0);
+
+    btn.presses.forEach(p => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <span>${formatDateTime(p.timestamp, true)}</span>
+        <button class="history-del" data-press-id="${p.id}">削除</button>
+      `;
+      historyList.appendChild(li);
+    });
+  }
+
+  historyList.addEventListener('click', async e => {
+    const delBtn = e.target.closest('.history-del');
+    if (!delBtn) return;
+    await deletePressRemote(delBtn.dataset.pressId);
+    renderHistory();
+  });
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    currentHistoryButtonId = null;
+  }
+
+  closeModalBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => {
+    if (e.target === modal) closeModal();
+  });
+
+  // View tabs (list / calendar)
+  viewTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      currentView = tab.dataset.view;
+      updateViewVisibility();
+      if (currentView === 'calendar') renderCalendar();
+    });
+  });
+
+  // Calendar rendering
+  function buildDayMap() {
+    const map = {};
+    state.buttons.forEach(btn => {
+      const color = getColor(btn.colorIndex);
+      btn.presses.forEach(p => {
+        const key = dateKey(p.timestamp);
+        if (!map[key]) map[key] = [];
+        map[key].push({
+          buttonId: btn.id,
+          buttonName: btn.name,
+          color: color.accent,
+          timestamp: p.timestamp,
+          pressId: p.id
+        });
+      });
+    });
+    Object.values(map).forEach(arr => arr.sort((a, b) => b.timestamp - a.timestamp));
+    return map;
+  }
+
+  function renderCalendar() {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    calendarTitle.textContent = `${year}年${month + 1}月`;
+
+    const dayMap = buildDayMap();
+    const startWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const totalCells = Math.ceil((startWeekday + daysInMonth) / 7) * 7;
+    const todayKey = dateKey(Date.now());
+
+    calendarGrid.innerHTML = '';
+    for (let i = 0; i < totalCells; i++) {
+      let cellMonth = month;
+      let dayNum;
+      let outside = false;
+
+      if (i < startWeekday) {
+        dayNum = daysInPrevMonth - startWeekday + 1 + i;
+        cellMonth = month - 1;
+        outside = true;
+      } else if (i >= startWeekday + daysInMonth) {
+        dayNum = i - (startWeekday + daysInMonth) + 1;
+        cellMonth = month + 1;
+        outside = true;
+      } else {
+        dayNum = i - startWeekday + 1;
+      }
+
+      const cellDate = new Date(year, cellMonth, dayNum);
+      const key = dateKey(cellDate.getTime());
+      const entries = key in dayMap ? dayMap[key] : [];
+
+      const cell = document.createElement('div');
+      cell.className = 'day-cell' + (outside ? ' outside' : '') + (key === todayKey ? ' today' : '');
+      cell.dataset.dateKey = key;
+
+      const dotsHtml = entries.slice(0, 8)
+        .map(en => `<span class="day-dot" style="--dot-color:${en.color}"></span>`)
+        .join('');
+      const moreHtml = entries.length > 8 ? `<span class="day-more">+${entries.length - 8}</span>` : '';
+
+      cell.innerHTML = `
+        <span class="day-num">${dayNum}</span>
+        <div class="day-dots">${dotsHtml}${moreHtml}</div>
+      `;
+      calendarGrid.appendChild(cell);
+    }
+  }
+
+  calendarGrid.addEventListener('click', e => {
+    const cell = e.target.closest('.day-cell');
+    if (!cell) return;
+    openDay(cell.dataset.dateKey);
+  });
+
+  prevMonthBtn.addEventListener('click', () => {
+    calendarMonth.setMonth(calendarMonth.getMonth() - 1);
+    renderCalendar();
+  });
+  nextMonthBtn.addEventListener('click', () => {
+    calendarMonth.setMonth(calendarMonth.getMonth() + 1);
+    renderCalendar();
+  });
+  todayBtn.addEventListener('click', () => {
+    calendarMonth = new Date();
+    calendarMonth.setDate(1);
+    renderCalendar();
+  });
+
+  const weekdayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+  function openDay(key) {
+    currentDayKey = key;
+    const [y, m, d] = key.split('-').map(Number);
+    const weekday = weekdayNames[new Date(y, m - 1, d).getDay()];
+    dayModalTitle.textContent = `${y}年${m}月${d}日（${weekday}）の記録`;
+    renderDay();
+    dayModal.classList.remove('hidden');
+  }
+
+  function renderDay() {
+    const entries = buildDayMap()[currentDayKey] || [];
+    dayList.innerHTML = '';
+    dayEmpty.classList.toggle('hidden', entries.length > 0);
+
+    entries.forEach(en => {
+      const li = document.createElement('li');
+      const timePart = formatDateTime(en.timestamp, true).split(' ')[1];
+      li.innerHTML = `
+        <span class="entry-name-time">
+          <span class="entry-dot" style="background:${en.color}"></span>
+          <span>${escapeHtml(en.buttonName)} ・ ${timePart}</span>
+        </span>
+        <button class="history-del" data-press-id="${en.pressId}">削除</button>
+      `;
+      dayList.appendChild(li);
+    });
+  }
+
+  dayList.addEventListener('click', async e => {
+    const delBtn = e.target.closest('.history-del');
+    if (!delBtn) return;
+    await deletePressRemote(delBtn.dataset.pressId);
+    renderDay();
+  });
+
+  function closeDayModal() {
+    dayModal.classList.add('hidden');
+    currentDayKey = null;
+  }
+
+  closeDayModalBtn.addEventListener('click', closeDayModal);
+  dayModal.addEventListener('click', e => {
+    if (e.target === dayModal) closeDayModal();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!dayModal.classList.contains('hidden')) closeDayModal();
+    else if (!modal.classList.contains('hidden')) closeModal();
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>

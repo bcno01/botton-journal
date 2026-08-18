@@ -1,0 +1,14 @@
+{
+  "name": "ボタン記録",
+  "short_name": "ボタン記録",
+  "description": "自由に名前を付けたボタンを押して、日時を記録するアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fdf7f0",
+  "theme_color": "#e07a3f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
