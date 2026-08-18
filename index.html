@@ -451,6 +451,79 @@
     .calendar-nav h2 { font-size: 0.95rem; min-width: 90px; }
   }
 
+  /* Stats */
+  .stats-view {
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px 24px;
+  }
+  .stats-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 18px;
+  }
+  .stats-select {
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .chart-block { margin-bottom: 30px; }
+  .chart-block:last-child { margin-bottom: 0; }
+  .chart-block h3 {
+    margin: 0 0 4px;
+    font-size: 0.92rem;
+    color: var(--text);
+  }
+  .chart-caption {
+    margin: 0 0 14px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 120px;
+  }
+  .bar-chart-dense { gap: 2px; }
+  .bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    min-width: 0;
+  }
+  .bar-fill {
+    width: 100%;
+    max-width: 22px;
+    min-height: 2px;
+    border-radius: 4px 4px 0 0;
+    background: var(--accent-soft);
+  }
+  .bar-col.has-value .bar-fill { background: var(--accent); }
+  .bar-num {
+    display: block;
+    font-size: 0.66rem;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+    height: 12px;
+  }
+  .bar-label {
+    display: block;
+    font-size: 0.66rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+    white-space: nowrap;
+  }
+
   /* Auth screen */
   .auth-screen {
     min-height: 100vh;
@@ -553,6 +626,7 @@
     <div class="view-tabs">
       <button class="view-tab active" data-view="list" type="button">一覧</button>
       <button class="view-tab" data-view="calendar" type="button">カレンダー</button>
+      <button class="view-tab" data-view="stats" type="button">統計</button>
     </div>
 
     <main id="grid" class="grid"></main>
@@ -569,6 +643,32 @@
         <span class="sun">日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span class="sat">土</span>
       </div>
       <div id="calendarGrid" class="calendar-grid"></div>
+    </section>
+
+    <section id="statsView" class="stats-view hidden">
+      <div class="stats-header">
+        <select id="statsButtonSelect" class="stats-select">
+          <option value="">全体</option>
+        </select>
+      </div>
+      <p id="statsEmpty" class="empty-state hidden">まだ記録がありません。</p>
+      <div id="statsBody">
+        <div class="chart-block">
+          <h3>曜日別</h3>
+          <p class="chart-caption" id="weekdayCaption"></p>
+          <div class="bar-chart" id="weekdayChart"></div>
+        </div>
+        <div class="chart-block">
+          <h3>時間帯別</h3>
+          <p class="chart-caption" id="hourCaption"></p>
+          <div class="bar-chart bar-chart-dense" id="hourChart"></div>
+        </div>
+        <div class="chart-block">
+          <h3>直近30日の推移</h3>
+          <p class="chart-caption" id="trendCaption"></p>
+          <div class="bar-chart bar-chart-dense" id="trendChart"></div>
+        </div>
+      </div>
     </section>
   </div>
 
@@ -673,6 +773,17 @@
   const dayList = document.getElementById('dayList');
   const dayEmpty = document.getElementById('dayEmpty');
   const closeDayModalBtn = document.getElementById('closeDayModal');
+
+  const statsView = document.getElementById('statsView');
+  const statsButtonSelect = document.getElementById('statsButtonSelect');
+  const statsEmpty = document.getElementById('statsEmpty');
+  const statsBody = document.getElementById('statsBody');
+  const weekdayChart = document.getElementById('weekdayChart');
+  const weekdayCaption = document.getElementById('weekdayCaption');
+  const hourChart = document.getElementById('hourChart');
+  const hourCaption = document.getElementById('hourCaption');
+  const trendChart = document.getElementById('trendChart');
+  const trendCaption = document.getElementById('trendCaption');
 
   function pad2(n) { return String(n).padStart(2, '0'); }
 
@@ -828,15 +939,18 @@
   function render() {
     renderList();
     renderCalendar();
+    renderStats();
     updateViewVisibility();
   }
 
   function updateViewVisibility() {
     const isList = currentView === 'list';
+    const isStats = currentView === 'stats';
     viewTabs.forEach(t => t.classList.toggle('active', t.dataset.view === currentView));
     grid.classList.toggle('hidden', !isList);
     emptyState.classList.toggle('hidden', !isList || state.buttons.length > 0);
-    calendarView.classList.toggle('hidden', isList);
+    calendarView.classList.toggle('hidden', currentView !== 'calendar');
+    statsView.classList.toggle('hidden', !isStats);
   }
 
   function renderList() {
@@ -1096,6 +1210,89 @@
   dayModal.addEventListener('click', e => {
     if (e.target === dayModal) closeDayModal();
   });
+
+  // ---------- Stats ----------
+
+  function populateStatsSelect() {
+    const prevValue = statsButtonSelect.value;
+    statsButtonSelect.innerHTML = '<option value="">全体</option>' +
+      state.buttons.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+    const stillExists = prevValue && state.buttons.some(b => b.id === prevValue);
+    statsButtonSelect.value = stillExists ? prevValue : '';
+  }
+
+  function renderBarChart(container, bars) {
+    const max = Math.max(1, ...bars.map(b => b.value));
+    container.innerHTML = bars.map(b => {
+      const pct = b.value > 0 ? Math.max(Math.round((b.value / max) * 100), 4) : 2;
+      return `
+        <div class="bar-col ${b.value > 0 ? 'has-value' : ''}" title="${escapeHtml(b.label)}: ${b.value}回">
+          <span class="bar-num">${b.showNum ? b.value : ''}</span>
+          <div class="bar-fill" style="height:${pct}%"></div>
+          <span class="bar-label">${b.showLabel ? escapeHtml(b.label) : ''}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderStats() {
+    populateStatsSelect();
+
+    const selectedId = statsButtonSelect.value;
+    const presses = selectedId
+      ? (findButton(selectedId)?.presses || [])
+      : state.buttons.flatMap(b => b.presses);
+
+    const hasData = presses.length > 0;
+    statsEmpty.classList.toggle('hidden', hasData);
+    statsBody.classList.toggle('hidden', !hasData);
+    if (!hasData) return;
+
+    // Weekday breakdown
+    const weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
+    const weekdayCounts = new Array(7).fill(0);
+    presses.forEach(p => weekdayCounts[new Date(p.timestamp).getDay()]++);
+    renderBarChart(weekdayChart, weekdayLabels.map((label, i) => ({
+      label, value: weekdayCounts[i], showLabel: true, showNum: true
+    })));
+    const topWeekday = weekdayCounts.indexOf(Math.max(...weekdayCounts));
+    weekdayCaption.textContent = `もっとも多いのは${weekdayLabels[topWeekday]}曜日(${weekdayCounts[topWeekday]}回)`;
+
+    // Hour-of-day breakdown
+    const hourCounts = new Array(24).fill(0);
+    presses.forEach(p => hourCounts[new Date(p.timestamp).getHours()]++);
+    renderBarChart(hourChart, hourCounts.map((value, h) => ({
+      label: `${h}時`, value, showLabel: h % 3 === 0, showNum: false
+    })));
+    const topHour = hourCounts.indexOf(Math.max(...hourCounts));
+    hourCaption.textContent = `もっとも多いのは${topHour}時台(${hourCounts[topHour]}回)`;
+
+    // Last 30 days trend
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const days = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      days.push(d);
+    }
+    const dayCountByKey = {};
+    presses.forEach(p => {
+      const key = dateKey(p.timestamp);
+      dayCountByKey[key] = (dayCountByKey[key] || 0) + 1;
+    });
+    const trendCounts = days.map(d => dayCountByKey[dateKey(d.getTime())] || 0);
+    renderBarChart(trendChart, days.map((d, i) => ({
+      label: `${d.getMonth() + 1}/${d.getDate()}`,
+      value: trendCounts[i],
+      showLabel: i % 5 === 0 || i === days.length - 1,
+      showNum: false
+    })));
+    const trendTotal = trendCounts.reduce((a, b) => a + b, 0);
+    trendCaption.textContent = `直近30日の合計 ${trendTotal}回 ・ 1日平均 ${(trendTotal / 30).toFixed(1)}回`;
+  }
+
+  statsButtonSelect.addEventListener('change', renderStats);
 
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
