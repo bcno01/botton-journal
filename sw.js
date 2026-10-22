@@ -1,4 +1,4 @@
-const CACHE_NAME = 'press-log-shell-v1';
+const CACHE_NAME = 'press-log-shell-v2';
 const SHELL_ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', event => {
